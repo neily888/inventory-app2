@@ -1,0 +1,104 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563EB;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="clipboardGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F3F4F6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="226" fill="url(#bgGradient)"/>
+  
+  <!-- Clipboard body -->
+  <rect x="262" y="180" width="500" height="680" rx="30" fill="url(#clipboardGradient)" stroke="#1F2937" stroke-width="12"/>
+  
+  <!-- Clipboard clip/top -->
+  <rect x="412" y="150" width="200" height="80" rx="15" fill="#6B7280"/>
+  <rect x="432" y="165" width="160" height="50" rx="10" fill="#9CA3AF"/>
+  
+  <!-- Checklist lines and checkmarks -->
+  <!-- Line 1 -->
+  <rect x="350" y="280" width="280" height="8" rx="4" fill="#D1D5DB"/>
+  <path d="M 640 265 L 660 285 L 700 245" fill="none" stroke="#10B981" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Line 2 -->
+  <rect x="350" y="360" width="280" height="8" rx="4" fill="#D1D5DB"/>
+  <path d="M 640 345 L 660 365 L 700 325" fill="none" stroke="#10B981" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Line 3 -->
+  <rect x="350" y="440" width="280" height="8" rx="4" fill="#D1D5DB"/>
+  <path d="M 640 425 L 660 445 L 700 405" fill="none" stroke="#10B981" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Line 4 -->
+  <rect x="350" y="520" width="280" height="8" rx="4" fill="#D1D5DB"/>
+  <path d="M 640 505 L 660 525 L 700 485" fill="none" stroke="#10B981" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Line 5 -->
+  <rect x="350" y="600" width="280" height="8" rx="4" fill="#D1D5DB"/>
+  <path d="M 640 585 L 660 605 L 700 565" fill="none" stroke="#10B981" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- DIY Items floating around clipboard -->
+  
+  <!-- Screwdriver (top right) -->
+  <g transform="translate(820, 280) rotate(35)">
+    <rect x="-15" y="-80" width="30" height="100" rx="8" fill="#EF4444"/>
+    <rect x="-10" y="20" width="20" height="100" fill="#94A3B8"/>
+    <circle cx="0" cy="-80" r="8" fill="#7F1D1D"/>
+  </g>
+  
+  <!-- Wrench (left side) -->
+  <g transform="translate(180, 400) rotate(-25)">
+    <rect x="-20" y="-100" width="40" height="150" rx="10" fill="#F59E0B"/>
+    <circle cx="0" cy="-115" r="35" fill="#F59E0B"/>
+    <circle cx="0" cy="-115" r="20" fill="#FFFFFF" opacity="0.3"/>
+    <rect x="-12" y="50" width="24" height="30" fill="#F59E0B"/>
+  </g>
+  
+  <!-- Paint Brush (top left) -->
+  <g transform="translate(200, 250) rotate(-45)">
+    <rect x="-8" y="-60" width="16" height="80" fill="#8B5CF6"/>
+    <path d="M -25 -80 L 25 -80 L 15 -60 L -15 -60 Z" fill="#A78BFA"/>
+    <rect x="-15" y="-60" width="30" height="10" fill="#C4B5FD"/>
+  </g>
+  
+  <!-- Hammer (bottom right) -->
+  <g transform="translate(830, 680) rotate(20)">
+    <rect x="-12" y="-50" width="24" height="130" rx="8" fill="#14B8A6"/>
+    <rect x="-60" y="-100" width="120" height="50" rx="10" fill="#6B7280"/>
+    <rect x="-50" y="-90" width="100" height="30" rx="5" fill="#475569"/>
+  </g>
+  
+  <!-- Light bulb (bottom left) -->
+  <g transform="translate(170, 720)">
+    <ellipse cx="0" cy="-20" rx="40" ry="48" fill="#FCD34D"/>
+    <rect x="-24" y="20" width="48" height="10" rx="2" fill="#E5E7EB"/>
+    <rect x="-24" y="32" width="48" height="10" rx="2" fill="#D1D5DB"/>
+    <rect x="-24" y="44" width="48" height="10" rx="2" fill="#E5E7EB"/>
+    <!-- Light rays -->
+    <line x1="-55" y1="-20" x2="-70" y2="-20" stroke="#FCD34D" stroke-width="6" stroke-linecap="round"/>
+    <line x1="55" y1="-20" x2="70" y2="-20" stroke="#FCD34D" stroke-width="6" stroke-linecap="round"/>
+    <line x1="-40" y1="-50" x2="-52" y2="-68" stroke="#FCD34D" stroke-width="6" stroke-linecap="round"/>
+    <line x1="40" y1="-50" x2="52" y2="-68" stroke="#FCD34D" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Pliers (right side middle) -->
+  <g transform="translate(850, 500) rotate(45)">
+    <path d="M -10 -60 L -10 30 L -25 50 L -35 40 L -20 20 L -20 -60 Z" fill="#EC4899"/>
+    <path d="M 10 -60 L 10 30 L 25 50 L 35 40 L 20 20 L 20 -60 Z" fill="#EC4899"/>
+    <circle cx="-10" cy="-65" r="12" fill="#DB2777"/>
+    <circle cx="10" cy="-65" r="12" fill="#DB2777"/>
+  </g>
+  
+  <!-- Pencil (left bottom) -->
+  <g transform="translate(150, 560) rotate(-30)">
+    <rect x="-10" y="-70" width="20" height="100" fill="#FB923C"/>
+    <polygon points="0,-80 -15,-70 15,-70" fill="#FDE047"/>
+    <rect x="-10" y="30" width="20" height="15" fill="#FDE68A"/>
+    <polygon points="0,55 -10,45 10,45" fill="#78716C"/>
+  </g>
+</svg>
