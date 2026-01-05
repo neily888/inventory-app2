@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>Inventory Manager</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0f0f1e;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #252538;
+            --text-primary: #ffffff;
+            --text-secondary: #a8a8b8;
+            --text-dim: #6b6b7b;
+            --accent-primary: #00d4ff;
+            --accent-secondary: #7c3aed;
+            --success: #10b981;
+            --warning: #fbbf24;
+            --danger: #ef4444;
+            --archived: #6b7280;
+            --border: rgba(255, 255, 255, 0.1);
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+        
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        #root {
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        
+        .loading-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 1rem;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--bg-tertiary);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Search Overlay */
+        .search-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-primary);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            animation: fadeIn 0.2s;
+        }
+        
+        .search-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .search-back-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .search-input-container {
+            flex: 1;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: inherit;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+        
+        .search-results {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 0;
+        }
+        
+        .search-icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        
+        .search-icon-btn:active {
+            background: var(--bg-tertiary);
+        }
+        
+        .error-screen {
+            padding: 2rem;
+            text-align: center;
+            color: var(--danger);
+        }
+        
+        /* Header */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .menu-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        
+        .menu-btn:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .app-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--accent-primary);
+        }
+        
+        .header-right {
+            width: 40px;
+        }
+        
+        /* Tabs */
+        .tabs-container {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 65px;
+            z-index: 99;
+        }
+        
+        .tabs {
+            display: flex;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0 1.25rem;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+            font-weight: 500;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+        }
+        
+        .tab.active {
+            color: var(--accent-primary);
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent-primary);
+        }
+        
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 0.75rem;
+            padding: 1rem 1.25rem;
+            max-width: 600px;
+            margin: 0 auto;
+            align-items: center;
+        }
+        
+        .sort-select {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            transition: background 0.2s;
+            border: 1px solid var(--border);
+        }
+        
+        .toggle.active {
+            background: var(--accent-primary);
+        }
+        
+        .toggle-knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        
+        .toggle.active .toggle-knob {
+            transform: translateX(20px);
+        }
+        
+        .toggle-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            padding: 0 1.25rem 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* Tile */
+        .tile {
+            aspect-ratio: 1;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tile:active {
+            transform: scale(0.97);
+        }
+        
+        .tile.status-good {
+            border-color: var(--success);
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(16, 185, 129, 0.05) 100%);
+        }
+        
+        .tile.status-low {
+            border-color: var(--warning);
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(251, 191, 36, 0.05) 100%);
+        }
+        
+        .tile.status-zero {
+            border-color: var(--danger);
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(239, 68, 68, 0.05) 100%);
+        }
+        
+        .tile.status-archived {
+            border-color: var(--archived);
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(107, 114, 128, 0.05) 100%);
+        }
+        
+        .tile-name {
+            font-size: 0.9375rem;
+            font-weight: 500;
+            line-height: 1.3;
+            color: var(--text-primary);
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        
+        .tile-qty {
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: auto;
+        }
+        
+        .tile-qty-current {
+            font-size: 2rem;
+            font-weight: 600;
+            line-height: 1;
+            color: var(--text-primary);
+        }
+        
+        .tile-qty-total {
+            font-size: 1.125rem;
+            color: var(--text-dim);
+            opacity: 0.6;
+        }
+        
+        /* FAB */
+        .fab {
+            position: fixed;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px var(--shadow);
+            transition: all 0.2s;
+            z-index: 50;
+        }
+        
+        .fab:hover {
+            transform: translateX(-50%) scale(1.1);
+        }
+        
+        .fab:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            display: flex;
+            align-items: flex-end;
+            animation: fadeIn 0.2s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 24px 24px 0 0;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        
+        .modal-header {
+            padding: 1.5rem 1.25rem 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        
+        .modal-close:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .modal-content {
+            padding: 1.5rem 1.25rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+        
+        .qty-display {
+            display: flex;
+            justify-content: space-around;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .qty-item {
+            text-align: center;
+        }
+        
+        .qty-item-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .qty-item-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .quick-adjust {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .quick-btn {
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .quick-btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--accent-primary);
+        }
+        
+        .quick-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 0.75rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 212, 255, 0.3);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--bg-primary);
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        /* Menu */
+        .menu-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 150;
+            animation: fadeIn 0.2s;
+        }
+        
+        .menu {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 280px;
+            background: var(--bg-secondary);
+            z-index: 151;
+            padding: 1.5rem;
+            animation: slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+        }
+        
+        @keyframes slideInLeft {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        
+        .menu-header {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+        }
+        
+        .menu-item {
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.9375rem;
+            font-weight: 500;
+        }
+        
+        .menu-item:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .menu-item.active {
+            background: var(--bg-tertiary);
+            color: var(--accent-primary);
+        }
+        
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+        
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .empty-text {
+            font-size: 1rem;
+        }
+        
+        /* Dashboard */
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+        
+        /* Group View */
+        .group-section {
+            margin-bottom: 2rem;
+        }
+        
+        .group-header {
+            padding: 0.75rem 1.25rem;
+            background: var(--bg-tertiary);
+            border-left: 3px solid var(--accent-primary);
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+        
+        /* Settings */
+        .settings-section {
+            margin-bottom: 2rem;
+        }
+        
+        .settings-section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+        
+        .settings-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .group-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .group-item:last-child {
+            border-bottom: none;
+        }
+        
+        .delete-btn {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            padding: 0.5rem;
+            font-size: 1.25rem;
+        }
+        
+        @media (min-width: 600px) {
+            .modal {
+                border-radius: 24px;
+                margin: auto;
+                max-height: 80vh;
+            }
+            
+            .modal-overlay {
+                align-items: center;
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="loading-screen">
+            <div class="loading-spinner"></div>
+            <div>Loading...</div>
+        </div>
+    </div>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.min.js"></script>
+    
+    <script>
+        // Wait for libraries to load
+        window.addEventListener('load', function() {
+            try {
+                if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof Dexie === 'undefined') {
+                    document.getElementById('root').innerHTML = '<div class="error-screen"><h2>Error Loading Libraries</h2><p>Please check your internet connection and refresh the page.</p></div>';
+                    return;
+                }
+                
+                console.log('Libraries loaded successfully');
+                initializeApp();
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('root').innerHTML = '<div class="error-screen"><h2>Error</h2><p>' + error.message + '</p></div>';
+            }
+        });
+        
+        function initializeApp() {
+            const { useState, useEffect, useCallback, useRef } = React;
+            
+            // Initialize IndexedDB
+            const db = new Dexie('InventoryDB');
+            db.version(1).stores({
+                items: '++id, name, quantityLocationA, quantityLocationB, group, lowStockThreshold, isArchived, customOrder, createdAt',
+                settings: 'key, value'
+            });
+            
+            // Initial data
+            const initialItems = [
+                // LED Bulbs
+                { name: 'LED BC dim', group: 'LED Bulbs' },
+                { name: 'LED dec filament', group: 'LED Bulbs' },
+                { name: 'LED ES', group: 'LED Bulbs' },
+                { name: 'LED ES dim', group: 'LED Bulbs' },
+                { name: 'LED SES', group: 'LED Bulbs' },
+                { name: 'LED Candle BC', group: 'LED Bulbs' },
+                { name: 'LED Candle SBC', group: 'LED Bulbs' },
+                { name: 'LED Candle SES', group: 'LED Bulbs' },
+                { name: 'LED Candle SES dim', group: 'LED Bulbs' },
+                { name: 'LED Globe BC', group: 'LED Bulbs' },
+                { name: 'LED Globe SES', group: 'LED Bulbs' },
+                { name: 'LED G4', group: 'LED Bulbs' },
+                { name: 'LED G9', group: 'LED Bulbs' },
+                { name: 'LED GU10', group: 'LED Bulbs' },
+                { name: 'LED GU10 dim', group: 'LED Bulbs' },
+                { name: 'LED GU5.3', group: 'LED Bulbs' },
+                { name: 'LED GU5.3 dim', group: 'LED Bulbs' },
+                { name: 'LED Pygmy SES', group: 'LED Bulbs' },
+                { name: 'LED linear 118mm', group: 'LED Bulbs' },
+                { name: 'LED linear 78mm', group: 'LED Bulbs' },
+                { name: 'LED GX53', group: 'LED Bulbs' },
+                // CFL Bulbs
+                { name: 'CFL ES', group: 'CFL Bulbs' },
+                { name: 'CFL G23 2pin 9W', group: 'CFL Bulbs' },
+                { name: 'CFL 2D 28w (L) 4 pin', group: 'CFL Bulbs' },
+                { name: 'CFL 2D 16w 4 pin', group: 'CFL Bulbs' },
+                { name: 'CFL 2D 16w 2 pin', group: 'CFL Bulbs' },
+                { name: 'CFL GX24Q1', group: 'CFL Bulbs' },
+                // Standard Bulbs
+                { name: 'Stnd BC', group: 'Standard Bulbs' },
+                { name: 'Stnd ES', group: 'Standard Bulbs' },
+                { name: 'Stnd Candle BC', group: 'Standard Bulbs' },
+                { name: 'Stnd Candle ES', group: 'Standard Bulbs' },
+                { name: 'Stnd Globe BC', group: 'Standard Bulbs' },
+                { name: 'Stnd Globe ES', group: 'Standard Bulbs' },
+                { name: 'Stnd Globe SBC', group: 'Standard Bulbs' },
+                { name: 'Stnd Globe SES', group: 'Standard Bulbs' },
+                { name: 'Stnd Candle SBC', group: 'Standard Bulbs' },
+                { name: 'Stnd Candle SES', group: 'Standard Bulbs' },
+                { name: 'Stnd GU10', group: 'Standard Bulbs' },
+                { name: 'Stnd GU5.3', group: 'Standard Bulbs' },
+                { name: 'Stnd MR11 (mini gu5.3)', group: 'Standard Bulbs' },
+                { name: 'Stnd G9 28w', group: 'Standard Bulbs' },
+                { name: 'Stnd G9 19w', group: 'Standard Bulbs' },
+                { name: 'Stnd G4', group: 'Standard Bulbs' },
+                { name: 'Stnd GY6.35', group: 'Standard Bulbs' },
+                { name: 'Stnd oven SES', group: 'Standard Bulbs' },
+                { name: 'Stnd cooker hood', group: 'Standard Bulbs' },
+                { name: 'Stnd Pygmy SES', group: 'Standard Bulbs' }
+            ];
+            
+            // Initialize database with items if empty or add new items
+            async function initializeData() {
+                // Check if database has been initialized before
+                const dbInitialized = await db.settings.get('dbInitialized');
+                const existingItems = await db.items.toArray();
+                
+                // If database was previously initialized but items are gone, don't reinitialize
+                // (This means user explicitly cleared data or wants a fresh start)
+                if (dbInitialized && existingItems.length === 0) {
+                    console.log('Database was cleared by user - not reinitializing');
+                    return;
+                }
+                
+                const existingNames = new Set(existingItems.map(item => item.name));
+                
+                // Only add items that don't already exist
+                const newItems = initialItems.filter(item => !existingNames.has(item.name));
+                
+                if (newItems.length > 0) {
+                    const maxOrder = existingItems.reduce((max, item) => Math.max(max, item.customOrder || 0), 0);
+                    const itemsToAdd = newItems.map((item, index) => ({
+                        ...item,
+                        quantityLocationA: 0,
+                        quantityLocationB: 0,
+                        lowStockThreshold: 2,
+                        isArchived: false,
+                        customOrder: maxOrder + index + 1,
+                        createdAt: Date.now()
+                    }));
+                    await db.items.bulkAdd(itemsToAdd);
+                }
+                
+                // Mark database as initialized
+                if (!dbInitialized) {
+                    await db.settings.put({ key: 'dbInitialized', value: true });
+                }
+                
+                // Initialize settings
+                const settings = await db.settings.get('locationAName');
+                if (!settings) {
+                    await db.settings.bulkPut([
+                        { key: 'locationAName', value: 'Mobile' },
+                        { key: 'locationBName', value: 'Base' },
+                        { key: 'quickAdjustValues', value: [-10, -5, -1, 1, 5, 10] },
+                        { key: 'defaultThreshold', value: 2 },
+                        { key: 'showZeroStock', value: true },
+                        { key: 'sortBy', value: 'custom' }
+                    ]);
+                }
+            }
+            
+            // Main App Component
+            function App() {
+                const [items, setItems] = useState([]);
+                const [settings, setSettings] = useState({
+                    locationAName: 'Mobile',
+                    locationBName: 'Base',
+                    quickAdjustValues: [-10, -5, -1, 1, 5, 10],
+                    defaultThreshold: 2,
+                    showZeroStock: true,
+                    sortBy: 'custom'
+                });
+                const [currentView, setCurrentView] = useState('locationA');
+                const [currentLocation, setCurrentLocation] = useState('A');
+                const [selectedGroup, setSelectedGroup] = useState(null);
+                const [menuOpen, setMenuOpen] = useState(false);
+                const [modalOpen, setModalOpen] = useState(false);
+                const [selectedItem, setSelectedItem] = useState(null);
+                const [addModalOpen, setAddModalOpen] = useState(false);
+                const [loading, setLoading] = useState(true);
+                const [error, setError] = useState(null);
+                const [searchOpen, setSearchOpen] = useState(false);
+                const [searchQuery, setSearchQuery] = useState('');
+                
+                // Load data
+                useEffect(() => {
+                    async function loadData() {
+                        try {
+                            await initializeData();
+                            const allItems = await db.items.toArray();
+                            setItems(allItems);
+                            
+                            const settingsData = await db.settings.toArray();
+                            const settingsObj = {};
+                            settingsData.forEach(s => {
+                                settingsObj[s.key] = s.value;
+                            });
+                            setSettings(prev => ({ ...prev, ...settingsObj }));
+                            setLoading(false);
+                        } catch (err) {
+                            console.error('Error loading data:', err);
+                            setError(err.message);
+                            setLoading(false);
+                        }
+                    }
+                    loadData();
+                }, []);
+                
+                // Filter and sort items
+                const getFilteredItems = useCallback(() => {
+                    let filtered = items.filter(item => {
+                        // View filter
+                        if (currentView === 'locationA' || currentView === 'locationB') {
+                            if (item.isArchived) return false;
+                        } else if (currentView === 'allItems') {
+                            if (item.isArchived) return false;
+                        } else if (currentView === 'byGroup') {
+                            if (item.isArchived) return false;
+                            // Filter by selected group if one is selected
+                            if (selectedGroup && item.group !== selectedGroup) return false;
+                        } else if (currentView === 'lowStock') {
+                            const total = item.quantityLocationA + item.quantityLocationB;
+                            if (item.isArchived || total > item.lowStockThreshold) return false;
+                        } else if (currentView === 'archived') {
+                            if (!item.isArchived) return false;
+                        } else if (currentView === 'dashboard') {
+                            return false;
+                        }
+                        
+                        // Zero stock filter
+                        if (!settings.showZeroStock && !item.isArchived) {
+                            const total = item.quantityLocationA + item.quantityLocationB;
+                            if (total === 0) return false;
+                        }
+                        
+                        return true;
+                    });
+                    
+                    // Sort
+                    if (settings.sortBy === 'alphabetical') {
+                        filtered.sort((a, b) => a.name.localeCompare(b.name));
+                    } else if (settings.sortBy === 'stockHigh') {
+                        filtered.sort((a, b) => {
+                            const totalB = b.quantityLocationA + b.quantityLocationB;
+                            const totalA = a.quantityLocationA + a.quantityLocationB;
+                            return totalB - totalA;
+                        });
+                    } else if (settings.sortBy === 'stockLow') {
+                        filtered.sort((a, b) => {
+                            const totalA = a.quantityLocationA + a.quantityLocationB;
+                            const totalB = b.quantityLocationA + b.quantityLocationB;
+                            return totalA - totalB;
+                        });
+                    } else if (settings.sortBy === 'custom') {
+                        filtered.sort((a, b) => a.customOrder - b.customOrder);
+                    }
+                    
+                    return filtered;
+                }, [items, currentView, selectedGroup, settings]);
+                
+                const filteredItems = getFilteredItems();
+                
+                // Get item status
+                const getItemStatus = (item) => {
+                    if (item.isArchived) return 'archived';
+                    const total = item.quantityLocationA + item.quantityLocationB;
+                    if (total === 0) return 'zero';
+                    if (total <= item.lowStockThreshold) return 'low';
+                    return 'good';
+                };
+                
+                // Update item
+                const updateItem = async (itemId, updates) => {
+                    await db.items.update(itemId, updates);
+                    const updatedItems = await db.items.toArray();
+                    setItems(updatedItems);
+                };
+                
+                // Add item
+                const addItem = async (itemData) => {
+                    const maxOrder = items.reduce((max, item) => Math.max(max, item.customOrder || 0), 0);
+                    await db.items.add({
+                        ...itemData,
+                        customOrder: maxOrder + 1,
+                        createdAt: Date.now()
+                    });
+                    const updatedItems = await db.items.toArray();
+                    setItems(updatedItems);
+                };
+                
+                // Update settings
+                const updateSetting = async (key, value) => {
+                    await db.settings.put({ key, value });
+                    setSettings(prev => ({ ...prev, [key]: value }));
+                };
+                
+                // Export/Import
+                const exportData = async () => {
+                    const allItems = await db.items.toArray();
+                    const allSettings = await db.settings.toArray();
+                    const data = { items: allItems, settings: allSettings };
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `inventory-backup-${Date.now()}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                };
+                
+                const importData = async (file) => {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    await db.items.clear();
+                    await db.settings.clear();
+                    await db.items.bulkAdd(data.items);
+                    await db.settings.bulkPut(data.settings);
+                    const updatedItems = await db.items.toArray();
+                    setItems(updatedItems);
+                    const settingsData = await db.settings.toArray();
+                    const settingsObj = {};
+                    settingsData.forEach(s => {
+                        settingsObj[s.key] = s.value;
+                    });
+                    setSettings(prev => ({ ...prev, ...settingsObj }));
+                };
+                
+                if (loading) {
+                    return React.createElement('div', { className: 'loading-screen' },
+                        React.createElement('div', { className: 'loading-spinner' }),
+                        React.createElement('div', null, 'Loading...')
+                    );
+                }
+                
+                if (error) {
+                    return React.createElement('div', { className: 'error-screen' },
+                        React.createElement('h2', null, 'Error'),
+                        React.createElement('p', null, error)
+                    );
+                }
+                
+                return React.createElement(React.Fragment, null,
+                    // Header
+                    React.createElement('header', { className: 'header' },
+                        React.createElement('div', { className: 'header-content' },
+                            React.createElement('button', {
+                                className: 'menu-btn',
+                                onClick: () => setMenuOpen(true)
+                            }, '☰'),
+                            React.createElement('h1', { className: 'app-title' }, 'Inventory'),
+                            React.createElement('button', {
+                                className: 'search-icon-btn',
+                                onClick: () => setSearchOpen(true)
+                            }, '🔍')
+                        )
+                    ),
+                    
+                    // Tabs
+                    currentView === 'locationA' || currentView === 'locationB' ? React.createElement('div', { className: 'tabs-container' },
+                        React.createElement('div', { className: 'tabs' },
+                            React.createElement('button', {
+                                className: `tab ${currentView === 'locationA' ? 'active' : ''}`,
+                                onClick: () => { setCurrentView('locationA'); setCurrentLocation('A'); }
+                            }, settings.locationAName),
+                            React.createElement('button', {
+                                className: `tab ${currentView === 'locationB' ? 'active' : ''}`,
+                                onClick: () => { setCurrentView('locationB'); setCurrentLocation('B'); }
+                            }, settings.locationBName)
+                        )
+                    ) : currentView === 'byGroup' ? React.createElement('div', { className: 'tabs-container' },
+                        React.createElement('div', { className: 'tabs' },
+                            React.createElement('button', {
+                                className: `tab ${currentLocation === 'A' ? 'active' : ''}`,
+                                onClick: () => setCurrentLocation('A')
+                            }, settings.locationAName),
+                            React.createElement('button', {
+                                className: `tab ${currentLocation === 'B' ? 'active' : ''}`,
+                                onClick: () => setCurrentLocation('B')
+                            }, settings.locationBName)
+                        )
+                    ) : null,
+                    
+                    // Controls
+                    currentView !== 'dashboard' && currentView !== 'settings' ? React.createElement('div', { className: 'controls' },
+                        currentView === 'byGroup' ? React.createElement('select', {
+                            className: 'sort-select',
+                            value: selectedGroup || '',
+                            onChange: (e) => setSelectedGroup(e.target.value || null)
+                        },
+                            React.createElement('option', { value: '' }, 'Select a group...'),
+                            [...new Set(items.filter(i => !i.isArchived).map(i => i.group))].sort().map(group => 
+                                React.createElement('option', { key: group, value: group }, group)
+                            )
+                        ) : React.createElement('select', {
+                            className: 'sort-select',
+                            value: settings.sortBy,
+                            onChange: (e) => updateSetting('sortBy', e.target.value)
+                        },
+                            React.createElement('option', { value: 'custom' }, 'Custom Order'),
+                            React.createElement('option', { value: 'alphabetical' }, 'Alphabetical'),
+                            React.createElement('option', { value: 'stockHigh' }, 'Stock: High to Low'),
+                            React.createElement('option', { value: 'stockLow' }, 'Stock: Low to High')
+                        ),
+                        React.createElement('div', {
+                            className: 'toggle-container',
+                            onClick: () => updateSetting('showZeroStock', !settings.showZeroStock)
+                        },
+                            React.createElement('div', { className: `toggle ${settings.showZeroStock ? 'active' : ''}` },
+                                React.createElement('div', { className: 'toggle-knob' })
+                            ),
+                            React.createElement('span', { className: 'toggle-label' }, '0')
+                        )
+                    ) : null,
+                    
+                    // Content
+                    currentView === 'dashboard' ? React.createElement(Dashboard, { items }) :
+                    currentView === 'settings' ? React.createElement(Settings, {
+                        settings,
+                        updateSetting,
+                        items,
+                        updateItem,
+                        exportData,
+                        importData
+                    }) :
+                    React.createElement('div', { className: 'grid' },
+                        filteredItems.length === 0 ? React.createElement('div', {
+                            className: 'empty-state',
+                            style: { gridColumn: '1 / -1' }
+                        },
+                            React.createElement('div', { className: 'empty-icon' }, '📦'),
+                            React.createElement('div', { className: 'empty-text' }, 
+                                currentView === 'byGroup' && !selectedGroup ? 'Select a group to view items' : 'No items found'
+                            )
+                        ) :
+                        filteredItems.map(item => React.createElement(Tile, {
+                            key: item.id,
+                            item,
+                            currentLocation,
+                            status: getItemStatus(item),
+                            onClick: () => {
+                                setSelectedItem(item);
+                                setModalOpen(true);
+                            }
+                        }))
+                    ),
+                    
+                    // FAB
+                    React.createElement('button', {
+                        className: 'fab',
+                        onClick: () => setAddModalOpen(true)
+                    }, '+'),
+                    
+                    // Menu
+                    menuOpen ? React.createElement(Menu, {
+                        currentView,
+                        setCurrentView,
+                        onClose: () => setMenuOpen(false)
+                    }) : null,
+                    
+                    // Item Modal
+                    modalOpen && selectedItem ? React.createElement(ItemModal, {
+                        item: selectedItem,
+                        currentLocation,
+                        settings,
+                        onClose: () => { setModalOpen(false); setSelectedItem(null); },
+                        updateItem
+                    }) : null,
+                    
+                    // Add Modal
+                    addModalOpen ? React.createElement(AddItemModal, {
+                        settings,
+                        items,
+                        onClose: () => setAddModalOpen(false),
+                        addItem
+                    }) : null,
+                    
+                    // Search Overlay
+                    searchOpen ? React.createElement(SearchOverlay, {
+                        items,
+                        currentLocation,
+                        searchQuery,
+                        setSearchQuery,
+                        getItemStatus,
+                        onItemClick: (item) => {
+                            setSelectedItem(item);
+                            setModalOpen(true);
+                            setSearchOpen(false);
+                        },
+                        onClose: () => {
+                            setSearchOpen(false);
+                            setSearchQuery('');
+                        }
+                    }) : null
+                );
+            }
+            
+            // Tile Component
+            function Tile({ item, currentLocation, status, onClick }) {
+                const currentQty = currentLocation === 'A' ? item.quantityLocationA : item.quantityLocationB;
+                const totalQty = item.quantityLocationA + item.quantityLocationB;
+                
+                return React.createElement('div', {
+                    className: `tile status-${status}`,
+                    onClick
+                },
+                    React.createElement('div', { className: 'tile-name' }, item.name),
+                    React.createElement('div', { className: 'tile-qty' },
+                        React.createElement('div', { className: 'tile-qty-current' }, currentQty),
+                        React.createElement('div', { className: 'tile-qty-total' }, `/${totalQty}`)
+                    )
+                );
+            }
+            
+            // GroupedView Component
+            function GroupedView({ items, currentLocation, getItemStatus, onItemClick }) {
+                // Group items by their group property
+                const groupedItems = items.reduce((acc, item) => {
+                    const group = item.group || 'Uncategorized';
+                    if (!acc[group]) {
+                        acc[group] = [];
+                    }
+                    acc[group].push(item);
+                    return acc;
+                }, {});
+                
+                const groups = Object.keys(groupedItems).sort();
+                
+                if (groups.length === 0) {
+                    return React.createElement('div', { className: 'empty-state' },
+                        React.createElement('div', { className: 'empty-icon' }, '📦'),
+                        React.createElement('div', { className: 'empty-text' }, 'No items found')
+                    );
+                }
+                
+                return React.createElement('div', null,
+                    groups.map(group => React.createElement('div', {
+                        key: group,
+                        className: 'group-section'
+                    },
+                        React.createElement('div', { className: 'group-header' }, group),
+                        React.createElement('div', { className: 'grid' },
+                            groupedItems[group].map(item => React.createElement(Tile, {
+                                key: item.id,
+                                item,
+                                currentLocation,
+                                status: getItemStatus(item),
+                                onClick: () => onItemClick(item)
+                            }))
+                        )
+                    ))
+                );
+            }
+            
+            // Menu Component
+            function Menu({ currentView, setCurrentView, onClose }) {
+                const menuItems = [
+                    { id: 'locationA', label: 'Location A', icon: '📍' },
+                    { id: 'allItems', label: 'All Items', icon: '📋' },
+                    { id: 'byGroup', label: 'By Group', icon: '🏷️' },
+                    { id: 'lowStock', label: 'Low Stock', icon: '⚠️' },
+                    { id: 'archived', label: 'Archived', icon: '🗄️' },
+                    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                    { id: 'settings', label: 'Settings', icon: '⚙️' }
+                ];
+                
+                return React.createElement(React.Fragment, null,
+                    React.createElement('div', { className: 'menu-overlay', onClick: onClose }),
+                    React.createElement('div', { className: 'menu' },
+                        React.createElement('div', { className: 'menu-header' }, 'Menu'),
+                        menuItems.map(item => React.createElement('div', {
+                            key: item.id,
+                            className: `menu-item ${currentView === item.id ? 'active' : ''}`,
+                            onClick: () => {
+                                setCurrentView(item.id);
+                                onClose();
+                            }
+                        }, `${item.icon} ${item.label}`))
+                    )
+                );
+            }
+            
+            // ItemModal - Simplified for now
+            function ItemModal({ item, currentLocation, settings, onClose, updateItem }) {
+                const [editMode, setEditMode] = useState(false);
+                const [editedItem, setEditedItem] = useState({ ...item });
+                const [transferMode, setTransferMode] = useState(false);
+                const [transferAmount, setTransferAmount] = useState('');
+                const [currentItem, setCurrentItem] = useState(item);
+                
+                // Update currentItem when item prop changes
+                useEffect(() => {
+                    setCurrentItem(item);
+                }, [item]);
+                
+                const currentQty = currentLocation === 'A' ? currentItem.quantityLocationA : currentItem.quantityLocationB;
+                const otherQty = currentLocation === 'A' ? currentItem.quantityLocationB : currentItem.quantityLocationA;
+                const totalQty = currentItem.quantityLocationA + currentItem.quantityLocationB;
+                
+                const adjustQty = (amount) => {
+                    const key = currentLocation === 'A' ? 'quantityLocationA' : 'quantityLocationB';
+                    const newQty = Math.max(0, currentItem[key] + amount);
+                    const updates = { [key]: newQty };
+                    updateItem(currentItem.id, updates);
+                    // Update local state immediately
+                    setCurrentItem(prev => ({ ...prev, ...updates }));
+                };
+                
+                const setQty = (value) => {
+                    const key = currentLocation === 'A' ? 'quantityLocationA' : 'quantityLocationB';
+                    const newQty = Math.max(0, parseInt(value) || 0);
+                    const updates = { [key]: newQty };
+                    updateItem(currentItem.id, updates);
+                    setCurrentItem(prev => ({ ...prev, ...updates }));
+                };
+                
+                const handleTransfer = () => {
+                    const amount = parseInt(transferAmount) || 0;
+                    const sourceKey = currentLocation === 'A' ? 'quantityLocationA' : 'quantityLocationB';
+                    const destKey = currentLocation === 'A' ? 'quantityLocationB' : 'quantityLocationA';
+                    
+                    if (amount > 0 && amount <= currentItem[sourceKey]) {
+                        const updates = {
+                            [sourceKey]: currentItem[sourceKey] - amount,
+                            [destKey]: currentItem[destKey] + amount
+                        };
+                        updateItem(currentItem.id, updates);
+                        setCurrentItem(prev => ({ ...prev, ...updates }));
+                        setTransferMode(false);
+                        setTransferAmount('');
+                    }
+                };
+                
+                const saveEdit = () => {
+                    updateItem(currentItem.id, editedItem);
+                    setEditMode(false);
+                };
+                
+                const archiveItem = () => {
+                    const action = currentItem.isArchived ? 'restore' : 'archive';
+                    const message = currentItem.isArchived 
+                        ? 'Restore ' + currentItem.name + '? This will return it to active inventory.'
+                        : 'Archive ' + currentItem.name + '? This will remove it from active inventory. You can restore it from the Archived view.';
+                    
+                    if (confirm(message)) {
+                        updateItem(currentItem.id, { isArchived: !currentItem.isArchived });
+                        onClose();
+                    }
+                };
+                
+                return React.createElement('div', { className: 'modal-overlay', onClick: onClose },
+                    React.createElement('div', { className: 'modal', onClick: (e) => e.stopPropagation() },
+                        React.createElement('div', { className: 'modal-header' },
+                            React.createElement('h2', { className: 'modal-title' }, currentItem.name),
+                            React.createElement('button', { 
+                                className: 'btn btn-primary', 
+                                onClick: onClose,
+                                style: { marginBottom: 0, padding: '0.5rem 1rem', fontSize: '0.875rem', width: 'auto' }
+                            }, 'Save')
+                        ),
+                        React.createElement('div', { className: 'modal-content' },
+                            !editMode && !transferMode ? React.createElement(React.Fragment, null,
+                                React.createElement('div', { className: 'qty-display' },
+                                    React.createElement('div', { className: 'qty-item' },
+                                        React.createElement('div', { className: 'qty-item-label' }, settings.locationAName),
+                                        React.createElement('div', { className: 'qty-item-value' }, currentItem.quantityLocationA)
+                                    ),
+                                    React.createElement('div', { className: 'qty-item' },
+                                        React.createElement('div', { className: 'qty-item-label' }, settings.locationBName),
+                                        React.createElement('div', { className: 'qty-item-value' }, currentItem.quantityLocationB)
+                                    ),
+                                    React.createElement('div', { className: 'qty-item' },
+                                        React.createElement('div', { className: 'qty-item-label' }, 'Total'),
+                                        React.createElement('div', { className: 'qty-item-value' }, totalQty)
+                                    )
+                                ),
+                                
+                                React.createElement('div', { className: 'form-group' },
+                                    React.createElement('label', { className: 'form-label' }, 'Adjust by:'),
+                                    React.createElement('div', { 
+                                        style: { 
+                                            display: 'flex', 
+                                            gap: '0.75rem', 
+                                            alignItems: 'center',
+                                            marginBottom: '1rem'
+                                        } 
+                                    },
+                                        React.createElement('button', {
+                                            className: 'btn',
+                                            onClick: () => {
+                                                const qtyInput = document.getElementById('adjust-qty');
+                                                const amount = parseInt(qtyInput.value) || 1;
+                                                adjustQty(-amount);
+                                            },
+                                            style: { 
+                                                flex: '1', 
+                                                marginBottom: 0, 
+                                                fontSize: '1.5rem', 
+                                                padding: '0.75rem',
+                                                background: 'var(--danger)',
+                                                color: 'white',
+                                                border: 'none'
+                                            }
+                                        }, '−'),
+                                        React.createElement('input', {
+                                            id: 'adjust-qty',
+                                            type: 'number',
+                                            inputMode: 'numeric',
+                                            className: 'form-input',
+                                            defaultValue: '1',
+                                            min: '1',
+                                            style: { 
+                                                flex: '1', 
+                                                textAlign: 'center', 
+                                                fontSize: '1.125rem', 
+                                                fontWeight: '600',
+                                                background: 'var(--bg-primary)',
+                                                border: '2px solid var(--border)'
+                                            }
+                                        }),
+                                        React.createElement('button', {
+                                            className: 'btn',
+                                            onClick: () => {
+                                                const qtyInput = document.getElementById('adjust-qty');
+                                                const amount = parseInt(qtyInput.value) || 1;
+                                                adjustQty(amount);
+                                            },
+                                            style: { 
+                                                flex: '1', 
+                                                marginBottom: 0, 
+                                                fontSize: '1.5rem', 
+                                                padding: '0.75rem',
+                                                background: 'var(--success)',
+                                                color: 'white',
+                                                border: 'none'
+                                            }
+                                        }, '+')
+                                    )
+                                ),
+                                
+                                React.createElement('button', {
+                                    className: 'btn btn-secondary',
+                                    onClick: () => setTransferMode(true),
+                                    style: { fontSize: '1rem', padding: '0.875rem' }
+                                }, 'Transfer to ' + (currentLocation === 'A' ? settings.locationBName : settings.locationAName)),
+                                
+                                React.createElement('div', { 
+                                    style: { 
+                                        display: 'flex', 
+                                        gap: '0.75rem',
+                                        marginTop: '0.75rem'
+                                    } 
+                                },
+                                    React.createElement('button', {
+                                        className: 'btn btn-danger',
+                                        onClick: archiveItem,
+                                        style: { flex: '1', marginBottom: 0 }
+                                    }, currentItem.isArchived ? 'Restore Item' : 'Archive Item'),
+                                    
+                                    React.createElement('button', {
+                                        className: 'btn btn-secondary',
+                                        onClick: () => setEditMode(true),
+                                        style: { flex: '1', marginBottom: 0 }
+                                    }, 'Edit Details')
+                                )
+                            ) : transferMode ? React.createElement(React.Fragment, null,
+                                React.createElement('div', { className: 'form-group' },
+                                    React.createElement('label', { className: 'form-label' }, 
+                                        `Transfer from ${currentLocation === 'A' ? settings.locationAName : settings.locationBName} (${currentQty} available)`
+                                    ),
+                                    React.createElement('input', {
+                                        type: 'number',
+                                        className: 'form-input',
+                                        placeholder: 'Amount to transfer',
+                                        value: transferAmount,
+                                        onChange: (e) => setTransferAmount(e.target.value),
+                                        max: currentQty
+                                    })
+                                ),
+                                React.createElement('button', {
+                                    className: 'btn btn-primary',
+                                    onClick: handleTransfer
+                                }, 'Transfer'),
+                                React.createElement('button', {
+                                    className: 'btn btn-secondary',
+                                    onClick: () => { setTransferMode(false); setTransferAmount(''); }
+                                }, 'Cancel')
+                            ) : React.createElement(React.Fragment, null,
+                                React.createElement('div', { className: 'form-group' },
+                                    React.createElement('label', { className: 'form-label' }, 'Item Name'),
+                                    React.createElement('input', {
+                                        type: 'text',
+                                        className: 'form-input',
+                                        value: editedItem.name,
+                                        onChange: (e) => setEditedItem({ ...editedItem, name: e.target.value })
+                                    })
+                                ),
+                                React.createElement('div', { className: 'form-group' },
+                                    React.createElement('label', { className: 'form-label' }, 'Group'),
+                                    React.createElement('input', {
+                                        type: 'text',
+                                        className: 'form-input',
+                                        value: editedItem.group,
+                                        onChange: (e) => setEditedItem({ ...editedItem, group: e.target.value })
+                                    })
+                                ),
+                                React.createElement('div', { className: 'form-group' },
+                                    React.createElement('label', { className: 'form-label' }, 'Low Stock Threshold'),
+                                    React.createElement('input', {
+                                        type: 'number',
+                                        className: 'form-input',
+                                        value: editedItem.lowStockThreshold,
+                                        onChange: (e) => setEditedItem({ ...editedItem, lowStockThreshold: parseInt(e.target.value) || 0 })
+                                    })
+                                ),
+                                React.createElement('button', {
+                                    className: 'btn btn-primary',
+                                    onClick: saveEdit
+                                }, 'Save Changes'),
+                                React.createElement('button', {
+                                    className: 'btn btn-secondary',
+                                    onClick: () => { setEditMode(false); setEditedItem({ ...currentItem }); }
+                                }, 'Cancel')
+                            )
+                        )
+                    )
+                );
+            }
+            
+            // AddItemModal Component
+            function AddItemModal({ settings, items, onClose, addItem }) {
+                const [newItem, setNewItem] = useState({
+                    name: '',
+                    quantityLocationA: 0,
+                    quantityLocationB: 0,
+                    group: '',
+                    lowStockThreshold: settings.defaultThreshold,
+                    isArchived: false
+                });
+                
+                const groups = [...new Set(items.map(item => item.group))].sort();
+                
+                const handleSubmit = () => {
+                    if (newItem.name.trim()) {
+                        addItem(newItem);
+                        onClose();
+                    }
+                };
+                
+                return React.createElement('div', { className: 'modal-overlay', onClick: onClose },
+                    React.createElement('div', { className: 'modal', onClick: (e) => e.stopPropagation() },
+                        React.createElement('div', { className: 'modal-header' },
+                            React.createElement('h2', { className: 'modal-title' }, 'Add New Item'),
+                            React.createElement('button', { 
+                                className: 'btn btn-secondary', 
+                                onClick: onClose,
+                                style: { marginBottom: 0, padding: '0.5rem 1.5rem', fontSize: '0.875rem' }
+                            }, 'Cancel')
+                        ),
+                        React.createElement('div', { className: 'modal-content' },
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', { className: 'form-label' }, 'Item Name *'),
+                                React.createElement('input', {
+                                    type: 'text',
+                                    className: 'form-input',
+                                    value: newItem.name,
+                                    onChange: (e) => setNewItem({ ...newItem, name: e.target.value }),
+                                    placeholder: 'Enter item name'
+                                })
+                            ),
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', { className: 'form-label' }, settings.locationAName + ' Quantity'),
+                                React.createElement('input', {
+                                    type: 'number',
+                                    className: 'form-input',
+                                    value: newItem.quantityLocationA,
+                                    onChange: (e) => setNewItem({ ...newItem, quantityLocationA: parseInt(e.target.value) || 0 }),
+                                    placeholder: '0'
+                                })
+                            ),
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', { className: 'form-label' }, settings.locationBName + ' Quantity'),
+                                React.createElement('input', {
+                                    type: 'number',
+                                    className: 'form-input',
+                                    value: newItem.quantityLocationB,
+                                    onChange: (e) => setNewItem({ ...newItem, quantityLocationB: parseInt(e.target.value) || 0 }),
+                                    placeholder: '0'
+                                })
+                            ),
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', { className: 'form-label' }, 'Group'),
+                                React.createElement('input', {
+                                    type: 'text',
+                                    className: 'form-input',
+                                    list: 'groups',
+                                    value: newItem.group,
+                                    onChange: (e) => setNewItem({ ...newItem, group: e.target.value }),
+                                    placeholder: 'Select or create group'
+                                }),
+                                React.createElement('datalist', { id: 'groups' },
+                                    groups.map(group => React.createElement('option', { key: group, value: group }))
+                                )
+                            ),
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', { className: 'form-label' }, 'Low Stock Threshold'),
+                                React.createElement('input', {
+                                    type: 'number',
+                                    className: 'form-input',
+                                    value: newItem.lowStockThreshold,
+                                    onChange: (e) => setNewItem({ ...newItem, lowStockThreshold: parseInt(e.target.value) || 0 })
+                                })
+                            ),
+                            React.createElement('button', {
+                                className: 'btn btn-primary',
+                                onClick: handleSubmit,
+                                disabled: !newItem.name.trim()
+                            }, 'Add Item')
+                        )
+                    )
+                );
+            }
+            
+            // Dashboard Component
+            function Dashboard({ items }) {
+                const activeItems = items.filter(item => !item.isArchived);
+                const lowStockItems = activeItems.filter(item => {
+                    const total = item.quantityLocationA + item.quantityLocationB;
+                    return total > 0 && total <= item.lowStockThreshold;
+                });
+                const zeroStockItems = activeItems.filter(item => 
+                    item.quantityLocationA + item.quantityLocationB === 0
+                );
+                const groups = [...new Set(activeItems.map(item => item.group))];
+                
+                return React.createElement('div', { className: 'dashboard-stats' },
+                    React.createElement('div', { className: 'stat-card' },
+                        React.createElement('div', { className: 'stat-value' }, activeItems.length),
+                        React.createElement('div', { className: 'stat-label' }, 'Total Items')
+                    ),
+                    React.createElement('div', { className: 'stat-card' },
+                        React.createElement('div', { className: 'stat-value' }, groups.length),
+                        React.createElement('div', { className: 'stat-label' }, 'Groups')
+                    ),
+                    React.createElement('div', { className: 'stat-card' },
+                        React.createElement('div', { className: 'stat-value', style: { color: 'var(--warning)' } }, lowStockItems.length),
+                        React.createElement('div', { className: 'stat-label' }, 'Low Stock')
+                    ),
+                    React.createElement('div', { className: 'stat-card' },
+                        React.createElement('div', { className: 'stat-value', style: { color: 'var(--danger)' } }, zeroStockItems.length),
+                        React.createElement('div', { className: 'stat-label' }, 'Zero Stock')
+                    )
+                );
+            }
+            
+            // Settings Component
+            function Settings({ settings, updateSetting, items, updateItem, exportData, importData }) {
+                const [newGroup, setNewGroup] = useState('');
+                const fileInputRef = useRef(null);
+                
+                const groups = [...new Set(items.map(item => item.group))].sort();
+                
+                const deleteGroup = async (groupName) => {
+                    const itemsInGroup = items.filter(item => item.group === groupName);
+                    if (itemsInGroup.length > 0) {
+                        if (!confirm(`${itemsInGroup.length} items are in this group. They will be unassigned. Continue?`)) {
+                            return;
+                        }
+                        for (const item of itemsInGroup) {
+                            await updateItem(item.id, { group: '' });
+                        }
+                    }
+                };
+                
+                return React.createElement('div', { style: { padding: '1rem 1.25rem', maxWidth: '600px', margin: '0 auto' } },
+                    React.createElement('div', { className: 'settings-section' },
+                        React.createElement('h3', { className: 'settings-section-title' }, 'Location Names'),
+                        React.createElement('div', { className: 'settings-item' },
+                            React.createElement('div', { className: 'form-group', style: { marginBottom: '1rem' } },
+                                React.createElement('label', { className: 'form-label' }, 'Location A Name'),
+                                React.createElement('input', {
+                                    type: 'text',
+                                    className: 'form-input',
+                                    value: settings.locationAName,
+                                    onChange: (e) => updateSetting('locationAName', e.target.value)
+                                })
+                            ),
+                            React.createElement('div', { className: 'form-group', style: { marginBottom: 0 } },
+                                React.createElement('label', { className: 'form-label' }, 'Location B Name'),
+                                React.createElement('input', {
+                                    type: 'text',
+                                    className: 'form-input',
+                                    value: settings.locationBName,
+                                    onChange: (e) => updateSetting('locationBName', e.target.value)
+                                })
+                            )
+                        )
+                    ),
+                    
+                    React.createElement('div', { className: 'settings-section' },
+                        React.createElement('h3', { className: 'settings-section-title' }, 'Groups'),
+                        React.createElement('div', { className: 'settings-item' },
+                            groups.map(group => React.createElement('div', {
+                                key: group,
+                                className: 'group-item'
+                            },
+                                React.createElement('span', null, group),
+                                React.createElement('button', {
+                                    className: 'delete-btn',
+                                    onClick: () => deleteGroup(group)
+                                }, '×')
+                            ))
+                        )
+                    ),
+                    
+                    React.createElement('div', { className: 'settings-section' },
+                        React.createElement('h3', { className: 'settings-section-title' }, 'Defaults'),
+                        React.createElement('div', { className: 'settings-item' },
+                            React.createElement('div', { className: 'form-group', style: { marginBottom: 0 } },
+                                React.createElement('label', { className: 'form-label' }, 'Default Low Stock Threshold'),
+                                React.createElement('input', {
+                                    type: 'number',
+                                    className: 'form-input',
+                                    value: settings.defaultThreshold,
+                                    onChange: (e) => updateSetting('defaultThreshold', parseInt(e.target.value) || 0)
+                                })
+                            )
+                        )
+                    ),
+                    
+                    React.createElement('div', { className: 'settings-section' },
+                        React.createElement('h3', { className: 'settings-section-title' }, 'Backup & Restore'),
+                        React.createElement('button', {
+                            className: 'btn btn-secondary',
+                            onClick: exportData
+                        }, 'Export Data'),
+                        React.createElement('input', {
+                            ref: fileInputRef,
+                            type: 'file',
+                            accept: '.json',
+                            style: { display: 'none' },
+                            onChange: (e) => {
+                                const file = e.target.files[0];
+                                if (file && confirm('This will overwrite all current data. Continue?')) {
+                                    importData(file);
+                                }
+                                e.target.value = '';
+                            }
+                        }),
+                        React.createElement('button', {
+                            className: 'btn btn-secondary',
+                            onClick: () => fileInputRef.current?.click()
+                        }, 'Import Data')
+                    )
+                );
+            }
+            
+            // SearchOverlay Component
+            function SearchOverlay({ items, currentLocation, searchQuery, setSearchQuery, getItemStatus, onItemClick, onClose }) {
+                const searchResults = items.filter(item => {
+                    if (item.isArchived) return false;
+                    return item.name.toLowerCase().includes(searchQuery.toLowerCase());
+                });
+                
+                return React.createElement('div', { className: 'search-overlay' },
+                    React.createElement('div', { className: 'search-header' },
+                        React.createElement('button', {
+                            className: 'search-back-btn',
+                            onClick: onClose
+                        }, '←'),
+                        React.createElement('div', { className: 'search-input-container' },
+                            React.createElement('input', {
+                                type: 'text',
+                                className: 'search-input',
+                                placeholder: 'Search items...',
+                                value: searchQuery,
+                                onChange: (e) => setSearchQuery(e.target.value),
+                                autoFocus: true
+                            })
+                        )
+                    ),
+                    React.createElement('div', { className: 'search-results' },
+                        searchQuery.length === 0 ? React.createElement('div', { className: 'empty-state' },
+                            React.createElement('div', { className: 'empty-icon' }, '🔍'),
+                            React.createElement('div', { className: 'empty-text' }, 'Type to search items')
+                        ) :
+                        searchResults.length === 0 ? React.createElement('div', { className: 'empty-state' },
+                            React.createElement('div', { className: 'empty-icon' }, '📦'),
+                            React.createElement('div', { className: 'empty-text' }, 'No items found')
+                        ) :
+                        React.createElement('div', { className: 'grid' },
+                            searchResults.map(item => React.createElement(Tile, {
+                                key: item.id,
+                                item,
+                                currentLocation,
+                                status: getItemStatus(item),
+                                onClick: () => onItemClick(item)
+                            }))
+                        )
+                    )
+                );
+            }
+            
+            // Render app
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(React.createElement(App));
+        }
+    </script>
+</body>
+</html>
