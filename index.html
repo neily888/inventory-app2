@@ -715,6 +715,90 @@
             margin-top: 0.5rem;
         }
         
+        /* List View */
+        .list-view-container {
+            padding: 0;
+        }
+        
+        .list-view-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .list-view-header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-secondary);
+            z-index: 10;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .list-view-header th {
+            padding: 0.75rem 0.5rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-align: center;
+        }
+        
+        .list-view-header th:first-child {
+            text-align: left;
+            padding-left: 1rem;
+        }
+        
+        .list-view-row {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .list-view-row:nth-child(even) {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .list-view-row:active {
+            background: var(--bg-tertiary);
+        }
+        
+        .list-view-cell {
+            padding: 0.625rem 0.5rem;
+            font-size: 0.875rem;
+            text-align: center;
+        }
+        
+        .list-view-cell:first-child {
+            text-align: left;
+            padding-left: 1rem;
+            font-weight: 500;
+        }
+        
+        .list-view-cell.empty {
+            color: transparent;
+        }
+        
+        .list-view-cell-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+        
+        .list-view-total {
+            font-weight: 700;
+        }
+        
+        .list-view-total.status-zero {
+            color: rgba(239, 68, 68, 0.5);
+        }
+        
+        .list-view-total.status-low {
+            color: rgba(251, 191, 36, 0.5);
+        }
+        
+        .list-view-total.status-good {
+            color: rgba(16, 185, 129, 0.5);
+        }
+        
         /* Group View */
         .group-section {
             margin-bottom: 2rem;
@@ -1155,7 +1239,7 @@
                     ) : null,
                     
                     // Controls
-                    currentView !== 'dashboard' && currentView !== 'settings' ? React.createElement('div', { className: 'controls' },
+                    currentView !== 'dashboard' && currentView !== 'settings' && currentView !== 'listView' ? React.createElement('div', { className: 'controls' },
                         currentView === 'byGroup' ? React.createElement('select', {
                             className: 'sort-select',
                             value: selectedGroup || '',
@@ -1195,6 +1279,15 @@
                         updateItem,
                         exportData,
                         importData
+                    }) :
+                    currentView === 'listView' ? React.createElement(ListView, {
+                        items: filteredItems,
+                        settings,
+                        getItemStatus,
+                        onItemClick: (item) => {
+                            setSelectedItem(item);
+                            setModalOpen(true);
+                        }
                     }) :
                     React.createElement('div', { className: 'grid' },
                         filteredItems.length === 0 ? React.createElement('div', {
@@ -1330,6 +1423,7 @@
                 const menuItems = [
                     { id: 'locationA', label: 'Location A', icon: '📍' },
                     { id: 'allItems', label: 'All Items', icon: '📋' },
+                    { id: 'listView', label: 'List View', icon: '📄' },
                     { id: 'byGroup', label: 'By Group', icon: '🏷️' },
                     { id: 'lowStock', label: 'Low Stock', icon: '⚠️' },
                     { id: 'archived', label: 'Archived', icon: '🗄️' },
@@ -1824,6 +1918,82 @@
                             className: 'btn btn-secondary',
                             onClick: () => fileInputRef.current?.click()
                         }, 'Import Data')
+                    )
+                );
+            }
+            
+            // ListView Component
+            function ListView({ items, settings, getItemStatus, onItemClick }) {
+                const [sortBy, setSortBy] = useState('alphabetical');
+                
+                // Sort items
+                const sortedItems = [...items].sort((a, b) => {
+                    if (sortBy === 'alphabetical') {
+                        return a.name.localeCompare(b.name);
+                    } else if (sortBy === 'totalHigh') {
+                        const totalB = b.quantityLocationA + b.quantityLocationB;
+                        const totalA = a.quantityLocationA + a.quantityLocationB;
+                        return totalB - totalA;
+                    } else if (sortBy === 'totalLow') {
+                        const totalA = a.quantityLocationA + a.quantityLocationB;
+                        const totalB = b.quantityLocationA + b.quantityLocationB;
+                        return totalA - totalB;
+                    }
+                    return 0;
+                });
+                
+                return React.createElement('div', { className: 'list-view-container' },
+                    // Sort dropdown
+                    React.createElement('div', { 
+                        className: 'controls',
+                        style: { padding: '0.75rem 1.25rem', background: 'var(--bg-secondary)' }
+                    },
+                        React.createElement('select', {
+                            className: 'sort-select',
+                            value: sortBy,
+                            onChange: (e) => setSortBy(e.target.value)
+                        },
+                            React.createElement('option', { value: 'alphabetical' }, 'Alphabetical'),
+                            React.createElement('option', { value: 'totalHigh' }, 'Total: High to Low'),
+                            React.createElement('option', { value: 'totalLow' }, 'Total: Low to High')
+                        )
+                    ),
+                    
+                    // Table
+                    React.createElement('table', { className: 'list-view-table' },
+                        React.createElement('thead', { className: 'list-view-header' },
+                            React.createElement('tr', null,
+                                React.createElement('th', null, 'Item'),
+                                React.createElement('th', null, settings.locationAName),
+                                React.createElement('th', null, settings.locationBName),
+                                React.createElement('th', null, 'Total')
+                            )
+                        ),
+                        React.createElement('tbody', null,
+                            sortedItems.map(item => {
+                                const total = item.quantityLocationA + item.quantityLocationB;
+                                const status = getItemStatus(item);
+                                const statusClass = status === 'zero' ? 'status-zero' : 
+                                                   status === 'low' ? 'status-low' : 'status-good';
+                                
+                                return React.createElement('tr', {
+                                    key: item.id,
+                                    className: 'list-view-row',
+                                    onClick: () => onItemClick(item)
+                                },
+                                    React.createElement('td', { className: 'list-view-cell' }, item.name),
+                                    React.createElement('td', { 
+                                        className: 'list-view-cell list-view-cell-number' + (item.quantityLocationA === 0 ? ' empty' : '')
+                                    }, item.quantityLocationA === 0 ? '—' : item.quantityLocationA),
+                                    React.createElement('td', { 
+                                        className: 'list-view-cell list-view-cell-number' + (item.quantityLocationB === 0 ? ' empty' : '')
+                                    }, item.quantityLocationB === 0 ? '—' : item.quantityLocationB),
+                                    React.createElement('td', { 
+                                        className: 'list-view-cell list-view-cell-number list-view-total ' + statusClass
+                                    }, total)
+                                );
+                            })
+                        )
                     )
                 );
             }
