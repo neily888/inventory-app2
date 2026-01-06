@@ -799,6 +799,21 @@
             color: rgba(16, 185, 129, 0.5);
         }
         
+        .list-view-group-header {
+            background: var(--bg-tertiary);
+            border-top: 2px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .list-view-group-header td {
+            padding: 0.75rem 1rem;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent-primary);
+        }
+        
         /* Group View */
         .group-section {
             margin-bottom: 2rem;
@@ -1924,53 +1939,36 @@
             
             // ListView Component
             function ListView({ items, settings, getItemStatus, onItemClick }) {
-                const [sortBy, setSortBy] = useState('alphabetical');
+                const [sortBy, setSortBy] = useState('byGroup');
                 
-                // Sort items
-                const sortedItems = [...items].sort((a, b) => {
-                    if (sortBy === 'alphabetical') {
-                        return a.name.localeCompare(b.name);
-                    } else if (sortBy === 'totalHigh') {
-                        const totalB = b.quantityLocationA + b.quantityLocationB;
-                        const totalA = a.quantityLocationA + a.quantityLocationB;
-                        return totalB - totalA;
-                    } else if (sortBy === 'totalLow') {
-                        const totalA = a.quantityLocationA + a.quantityLocationB;
-                        const totalB = b.quantityLocationA + b.quantityLocationB;
-                        return totalA - totalB;
-                    }
-                    return 0;
-                });
+                // Organize content based on sort
+                let content;
                 
-                return React.createElement('div', { className: 'list-view-container' },
-                    // Sort dropdown
-                    React.createElement('div', { 
-                        className: 'controls',
-                        style: { padding: '0.75rem 1.25rem', background: 'var(--bg-secondary)' }
-                    },
-                        React.createElement('select', {
-                            className: 'sort-select',
-                            value: sortBy,
-                            onChange: (e) => setSortBy(e.target.value)
-                        },
-                            React.createElement('option', { value: 'alphabetical' }, 'Alphabetical'),
-                            React.createElement('option', { value: 'totalHigh' }, 'Total: High to Low'),
-                            React.createElement('option', { value: 'totalLow' }, 'Total: Low to High')
-                        )
-                    ),
+                if (sortBy === 'byGroup') {
+                    // Group items by their group property
+                    const grouped = items.reduce((acc, item) => {
+                        const group = item.group || 'Uncategorized';
+                        if (!acc[group]) acc[group] = [];
+                        acc[group].push(item);
+                        return acc;
+                    }, {});
                     
-                    // Table
-                    React.createElement('table', { className: 'list-view-table' },
-                        React.createElement('thead', { className: 'list-view-header' },
-                            React.createElement('tr', null,
-                                React.createElement('th', null, 'Item'),
-                                React.createElement('th', null, settings.locationAName),
-                                React.createElement('th', null, settings.locationBName),
-                                React.createElement('th', null, 'Total')
-                            )
-                        ),
-                        React.createElement('tbody', null,
-                            sortedItems.map(item => {
+                    // Sort groups alphabetically and items within each group
+                    const sortedGroups = Object.keys(grouped).sort();
+                    
+                    content = sortedGroups.map(group => {
+                        const groupItems = grouped[group].sort((a, b) => a.name.localeCompare(b.name));
+                        
+                        return [
+                            // Group header row
+                            React.createElement('tr', {
+                                key: 'header-' + group,
+                                className: 'list-view-group-header'
+                            },
+                                React.createElement('td', { colSpan: 4 }, group)
+                            ),
+                            // Group items
+                            ...groupItems.map(item => {
                                 const total = item.quantityLocationA + item.quantityLocationB;
                                 const status = getItemStatus(item);
                                 const statusClass = status === 'zero' ? 'status-zero' : 
@@ -1993,7 +1991,80 @@
                                     }, total)
                                 );
                             })
+                        ];
+                    }).flat();
+                    
+                } else {
+                    // Flat list with sorting
+                    const sortedItems = [...items].sort((a, b) => {
+                        if (sortBy === 'alphabetical') {
+                            return a.name.localeCompare(b.name);
+                        } else if (sortBy === 'totalHigh') {
+                            const totalB = b.quantityLocationA + b.quantityLocationB;
+                            const totalA = a.quantityLocationA + a.quantityLocationB;
+                            return totalB - totalA;
+                        } else if (sortBy === 'totalLow') {
+                            const totalA = a.quantityLocationA + a.quantityLocationB;
+                            const totalB = b.quantityLocationA + b.quantityLocationB;
+                            return totalA - totalB;
+                        }
+                        return 0;
+                    });
+                    
+                    content = sortedItems.map(item => {
+                        const total = item.quantityLocationA + item.quantityLocationB;
+                        const status = getItemStatus(item);
+                        const statusClass = status === 'zero' ? 'status-zero' : 
+                                           status === 'low' ? 'status-low' : 'status-good';
+                        
+                        return React.createElement('tr', {
+                            key: item.id,
+                            className: 'list-view-row',
+                            onClick: () => onItemClick(item)
+                        },
+                            React.createElement('td', { className: 'list-view-cell' }, item.name),
+                            React.createElement('td', { 
+                                className: 'list-view-cell list-view-cell-number' + (item.quantityLocationA === 0 ? ' empty' : '')
+                            }, item.quantityLocationA === 0 ? '—' : item.quantityLocationA),
+                            React.createElement('td', { 
+                                className: 'list-view-cell list-view-cell-number' + (item.quantityLocationB === 0 ? ' empty' : '')
+                            }, item.quantityLocationB === 0 ? '—' : item.quantityLocationB),
+                            React.createElement('td', { 
+                                className: 'list-view-cell list-view-cell-number list-view-total ' + statusClass
+                            }, total)
+                        );
+                    });
+                }
+                
+                return React.createElement('div', { className: 'list-view-container' },
+                    // Sort dropdown
+                    React.createElement('div', { 
+                        className: 'controls',
+                        style: { padding: '0.75rem 1.25rem', background: 'var(--bg-secondary)' }
+                    },
+                        React.createElement('select', {
+                            className: 'sort-select',
+                            value: sortBy,
+                            onChange: (e) => setSortBy(e.target.value)
+                        },
+                            React.createElement('option', { value: 'byGroup' }, 'By Group'),
+                            React.createElement('option', { value: 'alphabetical' }, 'Alphabetical'),
+                            React.createElement('option', { value: 'totalHigh' }, 'Total: High to Low'),
+                            React.createElement('option', { value: 'totalLow' }, 'Total: Low to High')
                         )
+                    ),
+                    
+                    // Table
+                    React.createElement('table', { className: 'list-view-table' },
+                        React.createElement('thead', { className: 'list-view-header' },
+                            React.createElement('tr', null,
+                                React.createElement('th', null, 'Item'),
+                                React.createElement('th', null, settings.locationAName),
+                                React.createElement('th', null, settings.locationBName),
+                                React.createElement('th', null, 'Total')
+                            )
+                        ),
+                        React.createElement('tbody', null, content)
                     )
                 );
             }
