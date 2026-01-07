@@ -958,6 +958,11 @@
                 items: '++id, name, quantityLocationA, quantityLocationB, group, lowStockThreshold, isArchived, customOrder, createdAt',
                 settings: 'key, value'
             });
+            db.version(2).stores({
+                items: '++id, name, quantityLocationA, quantityLocationB, group, lowStockThreshold, isArchived, customOrder, createdAt',
+                settings: 'key, value',
+                activityLog: '++id, timestamp, itemId'
+            });
             
             // Initial data
             const initialItems = [
@@ -1092,6 +1097,11 @@
                     async function loadData() {
                         try {
                             await initializeData();
+                            
+                            // Clean up activity log entries older than 30 days
+                            const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+                            await db.activityLog.where('timestamp').below(thirtyDaysAgo).delete();
+                            
                             const allItems = await db.items.toArray();
                             setItems(allItems);
                             
@@ -1174,8 +1184,48 @@
                     return 'good';
                 };
                 
+                // Log activity
+                const logActivity = async (itemId, itemName, action, details) => {
+                    await db.activityLog.add({
+                        itemId,
+                        itemName,
+                        action,
+                        details,
+                        timestamp: Date.now()
+                    });
+                };
+                
                 // Update item
                 const updateItem = async (itemId, updates) => {
+                    // Get item details for logging
+                    const item = items.find(i => i.id === itemId);
+                    if (item && updates) {
+                        // Log quantity changes
+                        if ('quantityLocationA' in updates || 'quantityLocationB' in updates) {
+                            const locA = 'quantityLocationA' in updates;
+                            const locB = 'quantityLocationB' in updates;
+                            const loc = locA ? settings.locationAName : settings.locationBName;
+                            const oldQty = locA ? item.quantityLocationA : item.quantityLocationB;
+                            const newQty = locA ? updates.quantityLocationA : updates.quantityLocationB;
+                            const diff = newQty - oldQty;
+                            const sign = diff > 0 ? '+' : '';
+                            await logActivity(itemId, item.name, 'adjust', sign + diff + ' at ' + loc);
+                        }
+                        // Log archive/restore
+                        if ('isArchived' in updates) {
+                            const action = updates.isArchived ? 'Archived' : 'Restored';
+                            await logActivity(itemId, item.name, 'archive', action);
+                        }
+                        // Log name change
+                        if ('name' in updates && updates.name !== item.name) {
+                            await logActivity(itemId, item.name, 'edit', 'Renamed to ' + updates.name);
+                        }
+                        // Log group change
+                        if ('group' in updates && updates.group !== item.group) {
+                            await logActivity(itemId, item.name, 'edit', 'Changed group to ' + updates.group);
+                        }
+                    }
+                    
                     await db.items.update(itemId, updates);
                     const updatedItems = await db.items.toArray();
                     setItems(updatedItems);
@@ -1184,11 +1234,13 @@
                 // Add item
                 const addItem = async (itemData) => {
                     const maxOrder = items.reduce((max, item) => Math.max(max, item.customOrder || 0), 0);
-                    await db.items.add({
+                    const newItem = {
                         ...itemData,
                         customOrder: maxOrder + 1,
                         createdAt: Date.now()
-                    });
+                    };
+                    const id = await db.items.add(newItem);
+                    await logActivity(id, itemData.name, 'create', 'Created new item');
                     const updatedItems = await db.items.toArray();
                     setItems(updatedItems);
                 };
@@ -1286,7 +1338,7 @@
                     ) : null,
                     
                     // Controls
-                    currentView !== 'dashboard' && currentView !== 'settings' && currentView !== 'listView' ? React.createElement('div', { className: 'controls' },
+                    currentView !== 'dashboard' && currentView !== 'settings' && currentView !== 'listView' && currentView !== 'activityLog' ? React.createElement('div', { className: 'controls' },
                         currentView === 'byGroup' ? React.createElement('select', {
                             className: 'sort-select',
                             value: selectedGroup || '',
@@ -1326,6 +1378,15 @@
                         updateItem,
                         exportData,
                         importData
+                    }) :
+                    currentView === 'activityLog' ? React.createElement(ActivityLog, {
+                        onItemClick: async (itemId) => {
+                            const item = items.find(i => i.id === itemId);
+                            if (item) {
+                                setSelectedItem(item);
+                                setModalOpen(true);
+                            }
+                        }
                     }) :
                     currentView === 'listView' ? React.createElement(ListView, {
                         items: filteredItems,
@@ -1473,6 +1534,7 @@
                     { id: 'listView', label: 'List View', icon: '📄' },
                     { id: 'byGroup', label: 'By Group', icon: '🏷️' },
                     { id: 'lowStock', label: 'Low Stock', icon: '⚠️' },
+                    { id: 'activityLog', label: 'Activity Log', icon: '📋' },
                     { id: 'archived', label: 'Archived', icon: '🗄️' },
                     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
                     { id: 'settings', label: 'Settings', icon: '⚙️' }
@@ -1837,6 +1899,29 @@
             
             // Dashboard Component
             function Dashboard({ items }) {
+                const [recentLogs, setRecentLogs] = useState([]);
+                
+                useEffect(() => {
+                    async function loadRecentLogs() {
+                        const logs = await db.activityLog.orderBy('timestamp').reverse().limit(5).toArray();
+                        setRecentLogs(logs);
+                    }
+                    loadRecentLogs();
+                }, []);
+                
+                const formatTime = (timestamp) => {
+                    const date = new Date(timestamp);
+                    const now = new Date();
+                    const diff = now - date;
+                    const minutes = Math.floor(diff / 60000);
+                    const hours = Math.floor(diff / 3600000);
+                    
+                    if (minutes < 1) return 'Just now';
+                    if (minutes < 60) return minutes + ' min ago';
+                    if (hours < 24) return hours + ' hour' + (hours > 1 ? 's' : '') + ' ago';
+                    return 'Today at ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                };
+                
                 const activeItems = items.filter(item => !item.isArchived);
                 const lowStockItems = activeItems.filter(item => {
                     const total = item.quantityLocationA + item.quantityLocationB;
@@ -1847,22 +1932,75 @@
                 );
                 const groups = [...new Set(activeItems.map(item => item.group))];
                 
-                return React.createElement('div', { className: 'dashboard-stats' },
-                    React.createElement('div', { className: 'stat-card' },
-                        React.createElement('div', { className: 'stat-value' }, activeItems.length),
-                        React.createElement('div', { className: 'stat-label' }, 'Total Items')
+                return React.createElement('div', { style: { padding: '1.25rem' } },
+                    React.createElement('div', { className: 'dashboard-stats' },
+                        React.createElement('div', { className: 'stat-card' },
+                            React.createElement('div', { className: 'stat-value' }, activeItems.length),
+                            React.createElement('div', { className: 'stat-label' }, 'Total Items')
+                        ),
+                        React.createElement('div', { className: 'stat-card' },
+                            React.createElement('div', { className: 'stat-value' }, groups.length),
+                            React.createElement('div', { className: 'stat-label' }, 'Groups')
+                        ),
+                        React.createElement('div', { className: 'stat-card' },
+                            React.createElement('div', { className: 'stat-value', style: { color: 'var(--warning)' } }, lowStockItems.length),
+                            React.createElement('div', { className: 'stat-label' }, 'Low Stock')
+                        ),
+                        React.createElement('div', { className: 'stat-card' },
+                            React.createElement('div', { className: 'stat-value', style: { color: 'var(--danger)' } }, zeroStockItems.length),
+                            React.createElement('div', { className: 'stat-label' }, 'Zero Stock')
+                        )
                     ),
-                    React.createElement('div', { className: 'stat-card' },
-                        React.createElement('div', { className: 'stat-value' }, groups.length),
-                        React.createElement('div', { className: 'stat-label' }, 'Groups')
-                    ),
-                    React.createElement('div', { className: 'stat-card' },
-                        React.createElement('div', { className: 'stat-value', style: { color: 'var(--warning)' } }, lowStockItems.length),
-                        React.createElement('div', { className: 'stat-label' }, 'Low Stock')
-                    ),
-                    React.createElement('div', { className: 'stat-card' },
-                        React.createElement('div', { className: 'stat-value', style: { color: 'var(--danger)' } }, zeroStockItems.length),
-                        React.createElement('div', { className: 'stat-label' }, 'Zero Stock')
+                    
+                    // Recent Activity Section
+                    recentLogs.length > 0 && React.createElement('div', { 
+                        style: { 
+                            marginTop: '2rem',
+                            maxWidth: '600px',
+                            margin: '2rem auto 0'
+                        }
+                    },
+                        React.createElement('h3', {
+                            style: {
+                                fontSize: '1.125rem',
+                                fontWeight: 600,
+                                color: 'var(--text-primary)',
+                                marginBottom: '1rem'
+                            }
+                        }, 'Recent Activity'),
+                        React.createElement('div', {
+                            style: {
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '12px',
+                                overflow: 'hidden'
+                            }
+                        },
+                            recentLogs.map((log, index) => 
+                                React.createElement('div', {
+                                    key: log.id,
+                                    style: {
+                                        padding: '0.875rem 1rem',
+                                        borderBottom: index < recentLogs.length - 1 ? '1px solid var(--border)' : 'none'
+                                    }
+                                },
+                                    React.createElement('div', {
+                                        style: {
+                                            fontSize: '0.875rem',
+                                            fontWeight: 600,
+                                            color: 'var(--text-primary)',
+                                            marginBottom: '0.25rem'
+                                        }
+                                    }, log.itemName + ': ' + log.details),
+                                    React.createElement('div', {
+                                        style: {
+                                            fontSize: '0.75rem',
+                                            color: 'var(--text-dim)'
+                                        }
+                                    }, formatTime(log.timestamp))
+                                )
+                            )
+                        )
                     )
                 );
             }
@@ -1966,6 +2104,146 @@
                             onClick: () => fileInputRef.current?.click()
                         }, 'Import Data')
                     )
+                );
+            }
+            
+            // ActivityLog Component
+            function ActivityLog({ onItemClick }) {
+                const [logs, setLogs] = useState([]);
+                const [loading, setLoading] = useState(true);
+                
+                useEffect(() => {
+                    async function loadLogs() {
+                        const allLogs = await db.activityLog.orderBy('timestamp').reverse().limit(100).toArray();
+                        setLogs(allLogs);
+                        setLoading(false);
+                    }
+                    loadLogs();
+                }, []);
+                
+                // Group logs by date
+                const groupedLogs = logs.reduce((acc, log) => {
+                    const date = new Date(log.timestamp);
+                    const today = new Date();
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const sevenDaysAgo = new Date(today);
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                    
+                    let groupKey;
+                    if (date.toDateString() === today.toDateString()) {
+                        groupKey = 'Today';
+                    } else if (date.toDateString() === yesterday.toDateString()) {
+                        groupKey = 'Yesterday';
+                    } else if (date > sevenDaysAgo) {
+                        groupKey = 'Last 7 Days';
+                    } else {
+                        groupKey = 'Last 30 Days';
+                    }
+                    
+                    if (!acc[groupKey]) acc[groupKey] = [];
+                    acc[groupKey].push(log);
+                    return acc;
+                }, {});
+                
+                // Format time
+                const formatTime = (timestamp) => {
+                    const date = new Date(timestamp);
+                    const now = new Date();
+                    const diff = now - date;
+                    const minutes = Math.floor(diff / 60000);
+                    const hours = Math.floor(diff / 3600000);
+                    const days = Math.floor(diff / 86400000);
+                    
+                    if (minutes < 1) return 'Just now';
+                    if (minutes < 60) return minutes + ' min ago';
+                    if (hours < 24) return hours + ' hour' + (hours > 1 ? 's' : '') + ' ago';
+                    if (days === 1) return 'Yesterday at ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                };
+                
+                if (loading) {
+                    return React.createElement('div', { 
+                        style: { 
+                            display: 'flex', 
+                            justifyContent: 'center', 
+                            alignItems: 'center', 
+                            height: '50vh' 
+                        } 
+                    }, 'Loading...');
+                }
+                
+                if (logs.length === 0) {
+                    return React.createElement('div', {
+                        className: 'empty-state'
+                    },
+                        React.createElement('div', { className: 'empty-icon' }, '📋'),
+                        React.createElement('div', { className: 'empty-text' }, 'No activity yet')
+                    );
+                }
+                
+                const groupOrder = ['Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days'];
+                
+                return React.createElement('div', { 
+                    style: { padding: '1.25rem', maxWidth: '600px', margin: '0 auto' }
+                },
+                    groupOrder.map(groupKey => {
+                        if (!groupedLogs[groupKey]) return null;
+                        
+                        return React.createElement('div', { key: groupKey, style: { marginBottom: '2rem' } },
+                            React.createElement('div', {
+                                style: {
+                                    fontSize: '0.875rem',
+                                    fontWeight: 700,
+                                    color: 'var(--text-secondary)',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                    marginBottom: '0.75rem',
+                                    paddingLeft: '0.5rem'
+                                }
+                            }, groupKey),
+                            groupedLogs[groupKey].map(log => 
+                                React.createElement('div', {
+                                    key: log.id,
+                                    onClick: () => onItemClick(log.itemId),
+                                    style: {
+                                        background: 'var(--bg-secondary)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '12px',
+                                        padding: '1rem',
+                                        marginBottom: '0.75rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    },
+                                    onMouseDown: (e) => e.currentTarget.style.transform = 'scale(0.98)',
+                                    onMouseUp: (e) => e.currentTarget.style.transform = 'scale(1)',
+                                    onMouseLeave: (e) => e.currentTarget.style.transform = 'scale(1)'
+                                },
+                                    React.createElement('div', {
+                                        style: {
+                                            fontSize: '0.9375rem',
+                                            fontWeight: 600,
+                                            color: 'var(--text-primary)',
+                                            marginBottom: '0.25rem'
+                                        }
+                                    }, log.itemName),
+                                    React.createElement('div', {
+                                        style: {
+                                            fontSize: '0.875rem',
+                                            color: 'var(--text-secondary)',
+                                            marginBottom: '0.5rem'
+                                        }
+                                    }, log.details),
+                                    React.createElement('div', {
+                                        style: {
+                                            fontSize: '0.75rem',
+                                            color: 'var(--text-dim)'
+                                        }
+                                    }, formatTime(log.timestamp))
+                                )
+                            )
+                        );
+                    })
                 );
             }
             
