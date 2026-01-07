@@ -814,6 +814,38 @@
             color: var(--accent-primary);
         }
         
+        .group-pills-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .group-pill {
+            padding: 0.5rem 0.875rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        .group-pill:active {
+            transform: scale(0.95);
+        }
+        
+        .group-pill.active {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            border-color: var(--accent-primary);
+        }
+        
         /* Group View */
         .group-section {
             margin-bottom: 2rem;
@@ -1940,13 +1972,42 @@
             // ListView Component
             function ListView({ items, settings, getItemStatus, onItemClick }) {
                 const [sortBy, setSortBy] = useState('byGroup');
+                const [selectedGroup, setSelectedGroup] = useState('all');
+                
+                // Smart abbreviation for group names
+                const abbreviateGroup = (groupName) => {
+                    // Remove " Bulbs" suffix
+                    let abbrev = groupName.replace(' Bulbs', '');
+                    
+                    // Special case for Standard
+                    if (abbrev === 'Standard') {
+                        return 'STND';
+                    }
+                    
+                    // Known groups - return as-is if already short
+                    if (abbrev === 'LED' || abbrev === 'CFL' || abbrev.length <= 5) {
+                        return abbrev;
+                    }
+                    
+                    // Custom groups - first 5 characters
+                    return abbrev.substring(0, 5);
+                };
+                
+                // Get all unique groups
+                const allGroups = [...new Set(items.map(item => item.group || 'Uncategorized'))].sort();
+                
+                // Filter items by selected group
+                const filteredItems = selectedGroup === 'all' ? items : items.filter(item => {
+                    const itemGroup = item.group || 'Uncategorized';
+                    return itemGroup === selectedGroup;
+                });
                 
                 // Organize content based on sort
                 let content;
                 
                 if (sortBy === 'byGroup') {
                     // Group items by their group property
-                    const grouped = items.reduce((acc, item) => {
+                    const grouped = filteredItems.reduce((acc, item) => {
                         const group = item.group || 'Uncategorized';
                         if (!acc[group]) acc[group] = [];
                         acc[group].push(item);
@@ -1996,7 +2057,7 @@
                     
                 } else {
                     // Flat list with sorting
-                    const sortedItems = [...items].sort((a, b) => {
+                    const sortedItems = [...filteredItems].sort((a, b) => {
                         if (sortBy === 'alphabetical') {
                             return a.name.localeCompare(b.name);
                         } else if (sortBy === 'totalHigh') {
@@ -2051,6 +2112,21 @@
                             React.createElement('option', { value: 'alphabetical' }, 'Alphabetical'),
                             React.createElement('option', { value: 'totalHigh' }, 'Total: High to Low'),
                             React.createElement('option', { value: 'totalLow' }, 'Total: Low to High')
+                        )
+                    ),
+                    
+                    // Group filter pills
+                    React.createElement('div', { className: 'group-pills-container' },
+                        React.createElement('button', {
+                            className: 'group-pill' + (selectedGroup === 'all' ? ' active' : ''),
+                            onClick: () => setSelectedGroup('all')
+                        }, 'All'),
+                        allGroups.map(group => 
+                            React.createElement('button', {
+                                key: group,
+                                className: 'group-pill' + (selectedGroup === group ? ' active' : ''),
+                                onClick: () => setSelectedGroup(group)
+                            }, abbreviateGroup(group))
                         )
                     ),
                     
