@@ -1556,12 +1556,10 @@
                 );
             }
             
-            // ItemModal - Simplified for now
+            // ItemModal - Unified version
             function ItemModal({ item, currentLocation, settings, onClose, updateItem }) {
                 const [editMode, setEditMode] = useState(false);
                 const [editedItem, setEditedItem] = useState({ ...item });
-                const [transferMode, setTransferMode] = useState(false);
-                const [transferAmount, setTransferAmount] = useState('');
                 const [currentItem, setCurrentItem] = useState(item);
                 
                 // Update currentItem when item prop changes
@@ -1569,8 +1567,6 @@
                     setCurrentItem(item);
                 }, [item]);
                 
-                const currentQty = currentLocation === 'A' ? currentItem.quantityLocationA : currentItem.quantityLocationB;
-                const otherQty = currentLocation === 'A' ? currentItem.quantityLocationB : currentItem.quantityLocationA;
                 const totalQty = currentItem.quantityLocationA + currentItem.quantityLocationB;
                 
                 const adjustQty = (amount) => {
@@ -1578,33 +1574,51 @@
                     const newQty = Math.max(0, currentItem[key] + amount);
                     const updates = { [key]: newQty };
                     updateItem(currentItem.id, updates);
-                    // Update local state immediately
                     setCurrentItem(prev => ({ ...prev, ...updates }));
                 };
                 
-                const setQty = (value) => {
-                    const key = currentLocation === 'A' ? 'quantityLocationA' : 'quantityLocationB';
-                    const newQty = Math.max(0, parseInt(value) || 0);
-                    const updates = { [key]: newQty };
+                const transferToBase = () => {
+                    const qtyInput = document.getElementById('adjust-qty');
+                    const amount = parseInt(qtyInput.value) || 0;
+                    
+                    if (amount <= 0) {
+                        alert('Please enter a valid amount');
+                        return;
+                    }
+                    
+                    if (amount > currentItem.quantityLocationA) {
+                        alert('Not enough quantity at ' + settings.locationAName + ' (only ' + currentItem.quantityLocationA + ' available)');
+                        return;
+                    }
+                    
+                    const updates = {
+                        quantityLocationA: currentItem.quantityLocationA - amount,
+                        quantityLocationB: currentItem.quantityLocationB + amount
+                    };
                     updateItem(currentItem.id, updates);
                     setCurrentItem(prev => ({ ...prev, ...updates }));
                 };
                 
-                const handleTransfer = () => {
-                    const amount = parseInt(transferAmount) || 0;
-                    const sourceKey = currentLocation === 'A' ? 'quantityLocationA' : 'quantityLocationB';
-                    const destKey = currentLocation === 'A' ? 'quantityLocationB' : 'quantityLocationA';
+                const transferToMobile = () => {
+                    const qtyInput = document.getElementById('adjust-qty');
+                    const amount = parseInt(qtyInput.value) || 0;
                     
-                    if (amount > 0 && amount <= currentItem[sourceKey]) {
-                        const updates = {
-                            [sourceKey]: currentItem[sourceKey] - amount,
-                            [destKey]: currentItem[destKey] + amount
-                        };
-                        updateItem(currentItem.id, updates);
-                        setCurrentItem(prev => ({ ...prev, ...updates }));
-                        setTransferMode(false);
-                        setTransferAmount('');
+                    if (amount <= 0) {
+                        alert('Please enter a valid amount');
+                        return;
                     }
+                    
+                    if (amount > currentItem.quantityLocationB) {
+                        alert('Not enough quantity at ' + settings.locationBName + ' (only ' + currentItem.quantityLocationB + ' available)');
+                        return;
+                    }
+                    
+                    const updates = {
+                        quantityLocationA: currentItem.quantityLocationA + amount,
+                        quantityLocationB: currentItem.quantityLocationB - amount
+                    };
+                    updateItem(currentItem.id, updates);
+                    setCurrentItem(prev => ({ ...prev, ...updates }));
                 };
                 
                 const saveEdit = () => {
@@ -1635,7 +1649,8 @@
                             }, 'Save')
                         ),
                         React.createElement('div', { className: 'modal-content' },
-                            !editMode && !transferMode ? React.createElement(React.Fragment, null,
+                            !editMode ? React.createElement(React.Fragment, null,
+                                // Quantity display
                                 React.createElement('div', { className: 'qty-display' },
                                     React.createElement('div', { className: 'qty-item' },
                                         React.createElement('div', { className: 'qty-item-label' }, settings.locationAName),
@@ -1651,6 +1666,7 @@
                                     )
                                 ),
                                 
+                                // Unified input field for adjust and transfer
                                 React.createElement('div', { className: 'form-group' },
                                     React.createElement('label', { className: 'form-label' }, 'Adjust by:'),
                                     React.createElement('div', { 
@@ -1714,12 +1730,51 @@
                                     )
                                 ),
                                 
-                                React.createElement('button', {
-                                    className: 'btn btn-secondary',
-                                    onClick: () => setTransferMode(true),
-                                    style: { fontSize: '1rem', padding: '0.875rem' }
-                                }, 'Transfer to ' + (currentLocation === 'A' ? settings.locationBName : settings.locationAName)),
+                                // Unified transfer buttons
+                                React.createElement('div', { 
+                                    style: { 
+                                        display: 'flex', 
+                                        gap: '0.75rem',
+                                        marginBottom: '0.75rem'
+                                    } 
+                                },
+                                    React.createElement('button', {
+                                        className: 'btn btn-secondary',
+                                        onClick: transferToBase,
+                                        disabled: currentItem.quantityLocationA === 0,
+                                        style: { 
+                                            flex: '1', 
+                                            marginBottom: 0,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            padding: '0.75rem',
+                                            opacity: currentItem.quantityLocationA === 0 ? 0.4 : 1
+                                        }
+                                    },
+                                        React.createElement('div', { style: { fontSize: '1rem', marginBottom: '0.25rem' } }, '➡️ ' + settings.locationBName),
+                                        React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--text-dim)' } }, currentItem.quantityLocationA + ' avail')
+                                    ),
+                                    React.createElement('button', {
+                                        className: 'btn btn-secondary',
+                                        onClick: transferToMobile,
+                                        disabled: currentItem.quantityLocationB === 0,
+                                        style: { 
+                                            flex: '1', 
+                                            marginBottom: 0,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            padding: '0.75rem',
+                                            opacity: currentItem.quantityLocationB === 0 ? 0.4 : 1
+                                        }
+                                    },
+                                        React.createElement('div', { style: { fontSize: '1rem', marginBottom: '0.25rem' } }, '➡️ ' + settings.locationAName),
+                                        React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--text-dim)' } }, currentItem.quantityLocationB + ' avail')
+                                    )
+                                ),
                                 
+                                // Archive and Edit buttons
                                 React.createElement('div', { 
                                     style: { 
                                         display: 'flex', 
@@ -1739,29 +1794,8 @@
                                         style: { flex: '1', marginBottom: 0 }
                                     }, 'Edit Details')
                                 )
-                            ) : transferMode ? React.createElement(React.Fragment, null,
-                                React.createElement('div', { className: 'form-group' },
-                                    React.createElement('label', { className: 'form-label' }, 
-                                        `Transfer from ${currentLocation === 'A' ? settings.locationAName : settings.locationBName} (${currentQty} available)`
-                                    ),
-                                    React.createElement('input', {
-                                        type: 'number',
-                                        className: 'form-input',
-                                        placeholder: 'Amount to transfer',
-                                        value: transferAmount,
-                                        onChange: (e) => setTransferAmount(e.target.value),
-                                        max: currentQty
-                                    })
-                                ),
-                                React.createElement('button', {
-                                    className: 'btn btn-primary',
-                                    onClick: handleTransfer
-                                }, 'Transfer'),
-                                React.createElement('button', {
-                                    className: 'btn btn-secondary',
-                                    onClick: () => { setTransferMode(false); setTransferAmount(''); }
-                                }, 'Cancel')
                             ) : React.createElement(React.Fragment, null,
+                                // Edit mode
                                 React.createElement('div', { className: 'form-group' },
                                     React.createElement('label', { className: 'form-label' }, 'Item Name'),
                                     React.createElement('input', {
